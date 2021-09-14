@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 import * as cdk from '@aws-cdk/core';
 import * as glue from '@aws-cdk/aws-glue';
 import { Asset } from '@aws-cdk/aws-s3-assets';
