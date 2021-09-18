@@ -70,10 +70,10 @@ export class RedshiftVpcStack extends cdk.Stack {
         red_secret.grantRead(props.glueRoleGrantSecretRead);
         
         //Create Redshift cluster
-        const redshift_cluster = new redshift.Cluster(this, 'redshift-blockchain-covid', {
-            clusterName: 'cluster-blockchain-covid',
+        const redshift_cluster = new redshift.Cluster(this, 'redshift-covid-hiring', {
+            clusterName: 'cluster-covid-hiring',
             clusterType: redshift.ClusterType.SINGLE_NODE,
-            defaultDatabaseName: 'db-blockchain-covid',
+            defaultDatabaseName: 'db-covid-hiring',
             nodeType: redshift.NodeType.DC2_LARGE,
             masterUser: {
             masterUsername: 'etladmin',
@@ -95,7 +95,7 @@ export class RedshiftVpcStack extends cdk.Stack {
         })
 
         //redshift jdbc url
-        const redshift_jdbc_url = 'jdbc:redshift://'+redshift_cluster.clusterEndpoint.socketAddress+'/db-blockchain-covid'
+        const redshift_jdbc_url = 'jdbc:redshift://'+redshift_cluster.clusterEndpoint.socketAddress+'/db-covid-hiring'
         
         //create Glue Connection to Redshift after Redshift cluster is available
         const red_connect = new glue.Connection(this, 'red-connect', {

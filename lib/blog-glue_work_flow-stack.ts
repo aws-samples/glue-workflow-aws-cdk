@@ -18,9 +18,11 @@ import * as path from "path";
 const scriptsPath = "scripts/";
 const covidPath = "covid-data/";
 const hiringPath = "hiring-data/";
+const covidCasesTable = "covid_data";
+const covidHiringTable = "hiring_data"
+const parquetPath = "/processed-data/"
 const covid_src_bucket = "covid19-lake";
-const covid_src_key =
-  "rearc-covid-19-world-cases-deaths-testing/csv/covid-19-world-cases-deaths-testing.csv";
+const covid_src_key = "rearc-covid-19-world-cases-deaths-testing/csv/covid-19-world-cases-deaths-testing.csv";
 const hiring_src_bucket = "greenwichhr-covidjobimpacts";
 const hiring_src_key = "overall.csv.part_00000";
 const obj_covidCases = "covid_cases.csv";
@@ -108,9 +110,8 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
     const scripts = "s3://" + assetBucketName + "/" + scriptsPath;
     const covid = "s3://" + assetBucketName + "/" + covidPath;
     const hiring = "s3://" + assetBucketName + "/" + hiringPath;
-    const redshift_temp_dir =
-      "s3://" + f_pyRedshiftLoad.s3BucketName + "/output/temp/";
-    const outputPath = "s3://" + f_pyParquet.s3BucketName + "/output-data/";
+    const redshift_temp_dir = "s3://" + assetBucketName + "/output/temp/";
+    const outputPath = "s3://" + assetBucketName + "/output-data/";
 
     //create glue crawler to crawl csv files in S3
     const glue_crawler_s3 = new glue.CfnCrawler(this, "glue-crawler-s3", {
@@ -119,10 +120,10 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
       targets: {
         s3Targets: [
           {
-            path: covid + obj_covidCases,
+            path: covid
           },
           {
-            path: hiring + obj_covidHiring,
+            path: hiring
           },
         ],
       },
@@ -205,7 +206,7 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
       maxRetries: 2,
       timeout: 60,
       numberOfWorkers: 10,
-      glueVersion: "2.0",
+      glueVersion: "3.0",
       workerType: "G.1X",
     });
 
@@ -220,25 +221,26 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
         name: "glueetl", //spark ETL job must be set to value of 'glueetl'
         pythonVersion: "3",
         scriptLocation:
-          "s3://" + f_pyParquet.s3BucketName + "/" + scriptsPath + obj_etl,
+          "s3://" + assetBucketName + "/" + scriptsPath + obj_etl,
       },
       defaultArguments: {
-        "--TempDir": "s3://" + f_pyParquet.s3BucketName + "/output/temp/",
+        "--TempDir": "s3://" + assetBucketName + "/output/temp/",
         "--job-bookmark-option": "job-bookmark-disable",
         "--job-language": "python",
         "--spark-event-logs-path":
-          "s3://" + f_pyParquet.s3BucketName + "/output/logs/",
+          "s3://" + assetBucketName + "/output/logs/",
         "--enable-metrics": "",
         "--enable-continuous-cloudwatch-log": "true",
         "--glue_database_name": glue_db.databaseName,
-        "--glue_input_file1": obj_covidHiring,
-        "--glue_input_file2": obj_covidCases,
-        "--output_bucket_name": f_pyParquet.s3BucketName,
+        "--glue_covid_table": covidCasesTable,
+        "--glue_hiring_table": covidHiringTable,
+        "--output_bucket_name": assetBucketName,
+        "--output_prefix_path": parquetPath
       },
-      maxRetries: 3,
+      maxRetries: 2,
       timeout: 240,
       numberOfWorkers: 10,
-      glueVersion: "2.0",
+      glueVersion: "3.0",
       workerType: "G.1X",
     });
 
@@ -258,7 +260,7 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
           pythonVersion: "3",
           scriptLocation:
             "s3://" +
-            f_pyRedshiftLoad.s3BucketName +
+            assetBucketName +
             "/" +
             scriptsPath +
             obj_redshiftLoad,
@@ -268,20 +270,20 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
           "--job-bookmark-option": "job-bookmark-disable",
           "--job-language": "python",
           "--spark-event-logs-path":
-            "s3://" + f_pyRedshiftLoad.s3BucketName + "/output/logs/",
+            "s3://" + assetBucketName + "/output/logs/",
           "--enable-metrics": "",
           "--enable-continuous-cloudwatch-log": "true",
           "--glue_database_name": glue_db.databaseName,
           "--glue_input_file1": obj_redshiftLoad,
-          "--output_bucket_name": f_pyRedshiftLoad.s3BucketName,
+          "--output_bucket_name": assetBucketName,
         },
         connections: {
           connections: ["redshift-connect"],
         },
-        maxRetries: 1,
+        maxRetries: 2,
         timeout: 240,
         numberOfWorkers: 10,
-        glueVersion: "2.0",
+        glueVersion: "3.0",
         workerType: "G.1X",
       }
     );

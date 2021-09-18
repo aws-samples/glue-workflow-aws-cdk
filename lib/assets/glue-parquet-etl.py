@@ -4,91 +4,56 @@
 # // SPDX-License-Identifier: MIT-0
 
 import sys
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
-from awsglue.dynamicframe import DynamicFrame
+import boto3
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
+from awsglue.dynamicframe import DynamicFrame
+import re
 
 job_args = getResolvedOptions(sys.argv, [
         'glue_database_name',
-        'glue_input_file1',
-        'glue_input_file2',
-        'glue_input_file3',
-        'glue_input_file4',
-        'output_bucket_name'
+        'glue_covid_table',
+        'glue_hiring_table',
+        'output_bucket_name',
+        'output_prefix_path',
+        'JOB_NAME'
         ])
 
+s3 = boto3.client('s3')
+
 glue_db = job_args['glue_database_name']
-glue_table1 = job_args['glue_input_file1'].replace('.','_').replace('-','_')
-glue_table2 = job_args['glue_input_file2'].replace('.','_').replace('-','_')
-glue_table3 = job_args['glue_input_file3'].replace('.','_').replace('-','_')
-glue_table4 = job_args['glue_input_file4'].replace('.','_').replace('-','_')
+glue_covid_table = job_args['glue_covid_table']
+glue_hiring_table = job_args['glue_hiring_table']
 bucket = job_args['output_bucket_name']
+parquet_prefix = job_args['output_prefix_path']
 
-spark = SparkSession.builder.getOrCreate()
-glueContext = GlueContext(SparkContext.getOrCreate())
+# Remove prior downloads before pulling new data
+objs = s3.list_objects_v2(Bucket=bucket, Prefix='output-data/')
+if 'Contents' in objs:
+        for obj in objs['Contents']:
+                print('Deleting: ', obj['Key'])
+                s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
-bitcoin_dyf = glueContext.create_dynamic_frame.from_catalog(
-      database = glue_db,
-      table_name = glue_table1)
-bitcoin_dyf.printSchema()
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
 
-ethereum_dyf = glueContext.create_dynamic_frame.from_catalog(
-      database = glue_db,
-      table_name = glue_table2)
-ethereum_dyf.printSchema()
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
 
-covid_hiring_dyf = glueContext.create_dynamic_frame.from_catalog(
-      database = glue_db,
-      table_name = glue_table3)
-covid_hiring_dyf.printSchema()
+DataSource0 = glueContext.create_dynamic_frame.from_catalog(database = glue_db, table_name = glue_hiring_table, transformation_ctx = "DataSource0")
 
-covid_cases_dyf = glueContext.create_dynamic_frame.from_catalog(
-      database = glue_db,
-      table_name = glue_table4)
-covid_cases_dyf.printSchema()
+DataSource1 = glueContext.create_dynamic_frame.from_catalog(database = glue_db, table_name = glue_covid_table, transformation_ctx = "DataSource1")
 
+Transform2 = Join.apply(frame1 = DataSource1, frame2 = DataSource0, keys2 = ["post_date"], keys1 = ["date"], transformation_ctx = "Transform2")
 
-##### ETL #####
+Transform1 = Filter.apply(frame = Transform2, f = lambda row : (bool(re.match("USA", row["iso_code"]))), transformation_ctx = "Transform1")
 
-# Join Covid case data & Covid hiring data
-covid_hiring_cases = Join.apply(covid_hiring_dyf, covid_cases_dyf, "post_date", "date")
+Transform0 = ApplyMapping.apply(frame = Transform1, mappings = [("iso_code", "string", "iso_code", "string"), ("continent", "string", "continent", "string"), ("location", "string", "location", "string"), ("date", "string", "date", "string"), ("total_cases", "double", "total_cases", "double"), ("new_cases", "double", "new_cases", "double"), ("new_cases_smoothed", "double", "new_cases_smoothed", "double"), ("total_deaths", "double", "total_deaths", "double"), ("new_deaths", "double", "new_deaths", "double"), ("new_deaths_smoothed", "double", "new_deaths_smoothed", "double"), ("total_cases_per_million", "double", "total_cases_per_million", "double"), ("new_cases_per_million", "double", "new_cases_per_million", "double"), ("new_cases_smoothed_per_million", "double", "new_cases_smoothed_per_million", "double"), ("total_deaths_per_million", "double", "total_deaths_per_million", "double"), ("new_deaths_per_million", "double", "new_deaths_per_million", "double"), ("new_deaths_smoothed_per_million", "double", "new_deaths_smoothed_per_million", "double"), ("reproduction_rate", "double", "reproduction_rate", "double"), ("icu_patients", "string", "icu_patients", "string"), ("icu_patients_per_million", "string", "icu_patients_per_million", "string"), ("hosp_patients", "string", "hosp_patients", "string"), ("hosp_patients_per_million", "string", "hosp_patients_per_million", "string"), ("weekly_icu_admissions", "string", "weekly_icu_admissions", "string"), ("weekly_icu_admissions_per_million", "string", "weekly_icu_admissions_per_million", "string"), ("weekly_hosp_admissions", "string", "weekly_hosp_admissions", "string"), ("weekly_hosp_admissions_per_million", "string", "weekly_hosp_admissions_per_million", "string"), ("new_tests", "string", "new_tests", "string"), ("total_tests", "string", "total_tests", "string"), ("total_tests_per_thousand", "string", "total_tests_per_thousand", "string"), ("new_tests_per_thousand", "string", "new_tests_per_thousand", "string"), ("new_tests_smoothed", "string", "new_tests_smoothed", "string"), ("new_tests_smoothed_per_thousand", "string", "new_tests_smoothed_per_thousand", "string"), ("positive_rate", "string", "positive_rate", "string"), ("tests_per_case", "string", "tests_per_case", "string"), ("tests_units", "string", "tests_units", "string"), ("total_vaccinations", "double", "total_vaccinations", "double"), ("people_vaccinated", "double", "people_vaccinated", "double"), ("people_fully_vaccinated", "double", "people_fully_vaccinated", "double"), ("total_boosters", "string", "total_boosters", "string"), ("new_vaccinations", "double", "new_vaccinations", "double"), ("new_vaccinations_smoothed", "double", "new_vaccinations_smoothed", "double"), ("total_vaccinations_per_hundred", "double", "total_vaccinations_per_hundred", "double"), ("people_vaccinated_per_hundred", "double", "people_vaccinated_per_hundred", "double"), ("people_fully_vaccinated_per_hundred", "double", "people_fully_vaccinated_per_hundred", "double"), ("total_boosters_per_hundred", "string", "total_boosters_per_hundred", "string"), ("new_vaccinations_smoothed_per_million", "double", "new_vaccinations_smoothed_per_million", "double"), ("stringency_index", "double", "stringency_index", "double"), ("population", "double", "population", "double"), ("population_density", "double", "population_density", "double"), ("median_age", "double", "median_age", "double"), ("aged_65_older", "double", "aged_65_older", "double"), ("aged_70_older", "double", "aged_70_older", "double"), ("gdp_per_capita", "double", "gdp_per_capita", "double"), ("extreme_poverty", "string", "extreme_poverty", "string"), ("cardiovasc_death_rate", "double", "cardiovasc_death_rate", "double"), ("diabetes_prevalence", "double", "diabetes_prevalence", "double"), ("female_smokers", "string", "female_smokers", "string"), ("male_smokers", "string", "male_smokers", "string"), ("handwashing_facilities", "double", "handwashing_facilities", "double"), ("hospital_beds_per_thousand", "double", "hospital_beds_per_thousand", "double"), ("life_expectancy", "double", "life_expectancy", "double"), ("human_development_index", "double", "human_development_index", "double"), ("excess_mortality", "string", "excess_mortality", "string"), ("post_date", "string", "post_date", "string"), ("count_id_indexed", "double", "count_id_indexed", "double")], transformation_ctx = "Transform0")
 
-# Join Bitcoin and Ethereum data
-btc_eth = Join.apply(bitcoin_dyf, ethereum_dyf, "col0", "col0")
-
-# After the join, replace ".col" with "btc" to help with mapping data types and renaming columns later
-clean_btc_eth = btc_eth.toDF()
-clean_btc_eth_df = clean_btc_eth.toDF(*(c.replace('.', 'btc') for c in clean_btc_eth.columns))
-
-# convert the joined crpyto datasets back to Dynamic Frame
-clean_btc_eth_dyf = DynamicFrame.fromDF(clean_btc_eth_df, glueContext, "crypto_columns")
-covid_hiring_cases_df = covid_hiring_cases.toDF()
-
-# Filter unwanted values out of the joined dataset                     
-btc_eth_filter = Filter.apply(frame = clean_btc_eth_dyf,
-                            f = lambda x: x["col0"] not in ["Date"] and x["col1"] not in ["Price"] and x["col2"] not in ["Open"] and x["col3"] not in ["High"] and x["col4"] not in ["Low"] and x["col5"] not in ["Vol"] and x["col6"] not in ["Change %"] and ["btccol0"] not in ["Date"] and x["btccol1"] not in ["Price"] and x["btccol2"] not in ["Open"] and x["btccol3"] not in ["High"] and x["btccol4"] not in ["Low"] and x["btccol5"] not in ["Vol"] and x["btccol6"] not in ["Change %"])
-
-# Change date format for crypto date in order to join to covid dates
-btc_eth_df = btc_eth_filter.toDF().withColumn("col0",from_unixtime(unix_timestamp(col("col0"),'dd-MMM-yy'),'yyyy-MM-dd'))
-
-
-# Convert both bitcoin & ethereum / covid hiring & covid cases datasets back to DynamicFrame
-covid = DynamicFrame.fromDF(covid_hiring_cases_df, glueContext, "covid")
-crypto = DynamicFrame.fromDF(btc_eth_df, glueContext, "crypto")
-
-# Join the datasets together, resulting in 4 datasets joined as a single table now. 
-cc_join = Join.apply(covid, crypto, 'date', 'col0')
-cc_join_df = cc_join.toDF().withColumn('btccol1', regexp_replace('btccol1', ',', '')).withColumn('btccol2', regexp_replace('btccol2', ',', '')).withColumn('btccol3', regexp_replace('btccol3', ',', '')).withColumn('btccol4', regexp_replace('btccol4', ',', '')).withColumn('col1', regexp_replace('col1', ',', '')).withColumn('col3', regexp_replace('col2', ',', '')).withColumn('col2', regexp_replace('col3', ',', '')).withColumn('col4', regexp_replace('col4', ',', ''))
-cc_join_df.createOrReplaceTempView('crypto_covid')
-
-# Create final dataset with SQL
-
-# Use SQL to rename columns and change data types
-cc_sql = spark.sql('SELECT date(date) as cc_date, double(btccol1) as btc_price, double(btccol2) as btc_open, double(btccol3) as btc_high, double(btccol4) as btc_low, double(col1) as eth_price, double(col2) as eth_open, double(col3) as eth_high, double(col4) as eth_low, btccol6 as btc_change, col6 as eth_change, total_cases, new_cases, count_id_indexed as hiring_avg FROM crypto_covid')
-cc_dyf = DynamicFrame.fromDF(cc_sql, glueContext, "cc")
-cc_parquet = glueContext.write_dynamic_frame.from_options(frame = cc_dyf, connection_type = "s3", format = "glueparquet", connection_options = {"path": "s3://" +bucket+ "/output-data/", "compression": "snappy", "partitionKeys": [], 'groupFiles': 'inPartition', 'groupSize': '10485760'}, transformation_ctx = "cc_parquet")
+DataSink0 = glueContext.write_dynamic_frame.from_options(frame = Transform0, format_options = {"compression": "snappy"}, connection_type = "s3", format = "glueparquet", connection_options = {"path": "s3://" + bucket + parquet_prefix, "partitionKeys": []}, transformation_ctx = "DataSink0")
+job.commit()

@@ -29,7 +29,10 @@ job = Job(glueContext)
 
 cc_frame = glueContext.create_dynamic_frame.from_catalog(database = glue_db, table_name = "output_data", redshift_tmp_dir = tempDir, transformation_ctx = "cc_frame")
 
-cc_redshift = glueContext.write_dynamic_frame.from_jdbc_conf(frame = cc_frame, catalog_connection = "redshift-connect", connection_options = {"dbtable": "blockchain-covid-table", "database": "db-blockchain-covid"}, redshift_tmp_dir = tempDir, transformation_ctx = "cc_redshift")
+cc_redshift = glueContext.write_dynamic_frame.from_jdbc_conf(frame = cc_frame, catalog_connection = "redshift-connect", connection_options = {"preactions":"truncate table covid-hiring-table;", "dbtable": "covid-hiring-table", "database": "db-covid-hiring"}, redshift_tmp_dir = tempDir, transformation_ctx = "cc_redshift")
 
 job.commit()
+
+
+
 
