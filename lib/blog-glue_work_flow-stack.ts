@@ -111,7 +111,7 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
     const covid = "s3://" + assetBucketName + "/" + covidPath;
     const hiring = "s3://" + assetBucketName + "/" + hiringPath;
     const redshift_temp_dir = "s3://" + assetBucketName + "/output/temp/";
-    const outputPath = "s3://" + assetBucketName + "/output-data/";
+    const outputPath = "s3://" + assetBucketName + parquetPath;
 
     //create glue crawler to crawl csv files in S3
     const glue_crawler_s3 = new glue.CfnCrawler(this, "glue-crawler-s3", {
@@ -221,7 +221,7 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
         name: "glueetl", //spark ETL job must be set to value of 'glueetl'
         pythonVersion: "3",
         scriptLocation:
-          "s3://" + assetBucketName + "/" + scriptsPath + obj_etl,
+          "s3://" + f_pyParquet.s3BucketName + "/" + scriptsPath + obj_etl,
       },
       defaultArguments: {
         "--TempDir": "s3://" + assetBucketName + "/output/temp/",
@@ -260,7 +260,7 @@ export class BlogGlueWorkFlowStack extends cdk.Stack {
           pythonVersion: "3",
           scriptLocation:
             "s3://" +
-            assetBucketName +
+            f_pyRedshiftLoad.s3BucketName +
             "/" +
             scriptsPath +
             obj_redshiftLoad,

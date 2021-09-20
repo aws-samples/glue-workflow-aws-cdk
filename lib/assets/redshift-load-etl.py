@@ -13,13 +13,11 @@ from awsglue.job import Job
 
 job_args = getResolvedOptions(sys.argv, [
         'glue_database_name',
-        'glue_input_file1',
         'output_bucket_name',
         'TempDir'
         ])
 
 glue_db = job_args['glue_database_name']
-glue_table1 = job_args['glue_input_file1'].replace('.','_').replace('-','_')
 bucket = job_args['output_bucket_name']
 tempDir = job_args['TempDir']
 
@@ -27,9 +25,11 @@ glueContext = GlueContext(SparkContext.getOrCreate())
 
 job = Job(glueContext)
 
-cc_frame = glueContext.create_dynamic_frame.from_catalog(database = glue_db, table_name = "output_data", redshift_tmp_dir = tempDir, transformation_ctx = "cc_frame")
+# load parquet data into dynamic frame
+covid_hiring_dyf = glueContext.create_dynamic_frame.from_catalog(database = glue_db, table_name = "processed_data", redshift_tmp_dir = tempDir, transformation_ctx = "covid_hiring_dyf")
 
-cc_redshift = glueContext.write_dynamic_frame.from_jdbc_conf(frame = cc_frame, catalog_connection = "redshift-connect", connection_options = {"preactions":"truncate table covid-hiring-table;", "dbtable": "covid-hiring-table", "database": "db-covid-hiring"}, redshift_tmp_dir = tempDir, transformation_ctx = "cc_redshift")
+# write data from S3 into Redshift 
+redshift_load_dyf = glueContext.write_dynamic_frame.from_jdbc_conf(frame = covid_hiring_dyf, catalog_connection = "redshift-connect", connection_options = {"preactions":"truncate table covid_hiring_table;", "dbtable": "covid_hiring_table", "database": "db-covid-hiring"}, redshift_tmp_dir = tempDir, transformation_ctx = "redshift_load_dyf")
 
 job.commit()
 
