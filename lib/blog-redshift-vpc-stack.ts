@@ -7,7 +7,7 @@ import * as ec2 from '@aws-cdk/aws-ec2';
 import * as sm from '@aws-cdk/aws-secretsmanager';
 import * as glue from '@aws-cdk/aws-glue'
 import { Subnet } from '@aws-cdk/aws-ec2';
-import { RedshiftVpcStackProps } from './blog-glue_work_flow-stack';
+import { RedshiftVpcStackProps } from './blog-glue-workflow-stack';
 
 
 export class RedshiftVpcStack extends cdk.Stack {

@@ -3,8 +3,8 @@
 
 import { expect as expectCDK, matchTemplate, MatchStyle } from '@aws-cdk/assert';
 import * as cdk from '@aws-cdk/core';
-import * as BlogGlueWorkFlow from '../lib/blog-glue_work_flow-stack';
-import { BlogGlueWorkFlowStack } from '../lib/blog-glue_work_flow-stack';
+import * as BlogGlueWorkFlow from '../lib/blog-glue-workflow-stack';
+import { BlogGlueWorkFlowStack } from '../lib/blog-glue-workflow-stack';
 
 test('Empty Stack', () => {
     const app = new cdk.App();

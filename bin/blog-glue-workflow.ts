@@ -5,7 +5,7 @@
 
 import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
-import { BlogGlueWorkFlowStack } from '../lib/blog-glue_work_flow-stack';
+import { BlogGlueWorkFlowStack } from '../lib/blog-glue-workflow-stack';
 import { RedshiftVpcStack } from '../lib/blog-redshift-vpc-stack';
 
 
